@@ -55,7 +55,7 @@ router.post("/login", async (req, res) => {
 router.get("/all", async (req, res) => {
   try {
     const data = await new signUp.find({});
-    res.send(data);
+    res.json(data);
   } catch (error) {
     console.log(error.message);
   }

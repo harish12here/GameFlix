@@ -17,7 +17,7 @@ function calculateWinner(board) {
       return { winner: board[a], line: [a, b, c] };
     }
   }
-  return null;
+  return null; 
 }
 
 // AI implementation using minimax algorithm
