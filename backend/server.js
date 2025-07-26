@@ -2,7 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { connectDB } = require("./config/db");
-const signUpRoute = require("./routes/SignUpRoute")
+const signUpRoute = require("./routes/SignUpRoute");
+const highScoreRoute = require("./routes/HighScoreRoute");
 const app = express();
 
 app.use(express.json());
@@ -20,6 +21,7 @@ app.post("/get",(req,res)=>{
 })
 
 app.use("/api",signUpRoute);
+app.use("/api",highScoreRoute);
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {

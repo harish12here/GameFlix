@@ -1,9 +1,12 @@
+import axios from "axios";
 import React, { useState, useEffect, useRef } from "react";
 
 // Board size
 const BOARD_SIZE = 15;
 const CELL_SIZE = 24;
 const BOARD_PADDING = 2;
+
+const BackendUrl = import.meta.env.VITE_BACKEND_URL;
 
 const getRandomPosition = () => ({
   x: Math.floor(Math.random() * BOARD_SIZE),
@@ -15,7 +18,7 @@ const SPEED_LEVELS = {
   easy: 200,
   medium: 150,
   fast: 100,
-  insane: 70
+  insane: 70,
 };
 
 // Snake skins
@@ -23,31 +26,70 @@ const SNAKE_SKINS = {
   classic: {
     head: "bg-green-700",
     body: "bg-green-600",
-    name: "Classic Green"
+    name: "Classic Green",
   },
   fire: {
     head: "bg-red-700",
     body: "bg-orange-500",
-    name: "Fire Snake"
+    name: "Fire Snake",
   },
   ice: {
     head: "bg-blue-400",
     body: "bg-cyan-300",
-    name: "Ice Snake"
+    name: "Ice Snake",
   },
   venom: {
     head: "bg-purple-700",
     body: "bg-purple-500",
-    name: "Venom Snake"
+    name: "Venom Snake",
   },
   gold: {
     head: "bg-yellow-500",
     body: "bg-yellow-300",
-    name: "Golden Snake"
-  }
+    name: "Golden Snake",
+  },
 };
 
 function SnakeGame() {
+  const mail = localStorage.getItem("mail");
+  async function fetchScore() {
+    try {
+      console.log("Reciving the Score");
+      // console.log(mail);
+      if ((mail != null)) {
+        const response = await axios.post(BackendUrl + "/api/get_score", {
+          mail: mail,
+        });
+        if (response.data.status == 200) {
+          setHighScore(response.data.score);
+        } else {
+          console.log(response.data);
+        }
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+
+  useEffect(() => {
+    fetchScore();
+  }, []);
+
+  async function updateScore(newScore) {
+    try {
+      console.log("Updating the Score");
+      if (mail != null) {
+        const response = await axios.patch(BackendUrl + "/api/update_score", {
+          mail: mail,
+          score: newScore,
+        });
+        console.log(response.data.message);
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+
   const [snake, setSnake] = useState([{ x: 7, y: 7 }]);
   const [food, setFood] = useState(getRandomPosition());
   const [superFood, setSuperFood] = useState(null);
@@ -74,7 +116,9 @@ function SnakeGame() {
     do {
       newFood = getRandomPosition();
     } while (
-      snake.some(segment => segment.x === newFood.x && segment.y === newFood.y) ||
+      snake.some(
+        (segment) => segment.x === newFood.x && segment.y === newFood.y
+      ) ||
       (superFood && superFood.x === newFood.x && superFood.y === newFood.y)
     );
     return newFood;
@@ -86,44 +130,56 @@ function SnakeGame() {
     do {
       newSuperFood = getRandomPosition();
     } while (
-      snake.some(segment => segment.x === newSuperFood.x && segment.y === newSuperFood.y) ||
+      snake.some(
+        (segment) =>
+          segment.x === newSuperFood.x && segment.y === newSuperFood.y
+      ) ||
       (food.x === newSuperFood.x && food.y === newSuperFood.y)
     );
-    
+
     setSuperFood(newSuperFood);
-    
+
     // Super food disappears after 5 seconds
     setTimeout(() => {
-      setSuperFood(prev => (prev && prev.x === newSuperFood.x && prev.y === newSuperFood.y) ? null : prev);
+      setSuperFood((prev) =>
+        prev && prev.x === newSuperFood.x && prev.y === newSuperFood.y
+          ? null
+          : prev
+      );
     }, 5000);
   };
 
   // Record game highlight
   const recordHighlight = (action) => {
-    setHighlightReplay(prev => [
+    setHighlightReplay((prev) => [
       ...prev,
       {
         snake: [...snake],
-        food: {...food},
-        superFood: superFood ? {...superFood} : null,
+        food: { ...food },
+        superFood: superFood ? { ...superFood } : null,
         action,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      },
     ]);
   };
 
   // Move snake
   const moveSnake = () => {
     if (!gameStarted || isPaused || gameOver) return;
-    
-    setSnake(prevSnake => {
+
+    setSnake((prevSnake) => {
       const newSnake = [...prevSnake];
       const head = { ...newSnake[0] };
       head.x += direction.x;
       head.y += direction.y;
 
       // Check collision with wall
-      if (head.x < 0 || head.y < 0 || head.x >= BOARD_SIZE || head.y >= BOARD_SIZE) {
+      if (
+        head.x < 0 ||
+        head.y < 0 ||
+        head.x >= BOARD_SIZE ||
+        head.y >= BOARD_SIZE
+      ) {
         recordHighlight("game-over-wall");
         setGameOver(true);
         return prevSnake;
@@ -144,22 +200,21 @@ function SnakeGame() {
       if (head.x === food.x && head.y === food.y) {
         recordHighlight("eat-food");
         setFood(generateFood());
-        setScore(prev => prev + 10);
-        setFoodCount(prev => prev + 1);
-        
+        setScore((prev) => prev + 10);
+        setFoodCount((prev) => prev + 1);
+
         // Every 5 foods, spawn super food
         if ((foodCount + 1) % 5 === 0) {
           generateSuperFood();
         }
-      } 
+      }
       // Check if eating super food
       else if (superFood && head.x === superFood.x && head.y === superFood.y) {
         recordHighlight("eat-super-food");
         setSuperFood(null);
-        setScore(prev => prev + 30); // Super food worth 3x normal food
-        setFoodCount(prev => prev + 1);
-      } 
-      else {
+        setScore((prev) => prev + 30); // Super food worth 3x normal food
+        setFoodCount((prev) => prev + 1);
+      } else {
         newSnake.pop();
       }
 
@@ -177,6 +232,7 @@ function SnakeGame() {
   useEffect(() => {
     if (gameOver && score > highScore) {
       setHighScore(score);
+      updateScore(score);
     }
   }, [gameOver, score, highScore]);
 
@@ -187,9 +243,9 @@ function SnakeGame() {
         setGameStarted(true);
         return;
       }
-      
+
       if (gameOver || !gameStarted) return;
-      
+
       switch (e.key) {
         case "ArrowUp":
           if (direction.y === 1) break;
@@ -212,13 +268,13 @@ function SnakeGame() {
           setDirection({ x: 1, y: 0 });
           break;
         case " ":
-          setIsPaused(prev => !prev);
+          setIsPaused((prev) => !prev);
           break;
         default:
           break;
       }
     };
-    
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [direction, gameOver, gameStarted]);
@@ -229,22 +285,22 @@ function SnakeGame() {
       setGameStarted(true);
       return;
     }
-    
+
     if (gameOver) return;
-    
+
     const touch = e.touches[0];
     const boardRect = boardRef.current.getBoundingClientRect();
     const touchX = touch.clientX - boardRect.left;
     const touchY = touch.clientY - boardRect.top;
     const head = snake[0];
-    
+
     // Get relative position to head
     const headX = head.x * CELL_SIZE + CELL_SIZE / 2;
     const headY = head.y * CELL_SIZE + CELL_SIZE / 2;
-    
+
     const diffX = touchX - headX;
     const diffY = touchY - headY;
-    
+
     if (Math.abs(diffX) > Math.abs(diffY)) {
       // Horizontal swipe
       if (diffX > 0 && direction.x !== -1) {
@@ -313,7 +369,7 @@ function SnakeGame() {
             </div>
           </div>
         </div>
-        
+
         {/* Snake skin selector */}
         {!gameStarted && (
           <div className="mb-4">
@@ -324,12 +380,12 @@ function SnakeGame() {
                   key={key}
                   onClick={() => setSelectedSkin(key)}
                   className={`px-3 py-1 rounded-full text-sm flex items-center ${
-                    selectedSkin === key 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300'
+                    selectedSkin === key
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 hover:bg-gray-300"
                   }`}
                 >
-                  <span 
+                  <span
                     className={`w-3 h-3 rounded-full mr-2 ${skin.head}`}
                   ></span>
                   {skin.name}
@@ -338,20 +394,20 @@ function SnakeGame() {
             </div>
           </div>
         )}
-        
+
         {/* Speed selector */}
         {!gameStarted && (
           <div className="mb-4">
             <p className="text-gray-600 mb-2 text-center">Select Speed:</p>
             <div className="flex justify-center gap-2">
-              {Object.keys(SPEED_LEVELS).map(level => (
+              {Object.keys(SPEED_LEVELS).map((level) => (
                 <button
                   key={level}
                   onClick={() => setSpeedLevel(level)}
                   className={`px-3 py-1 rounded-full text-sm capitalize ${
-                    speedLevel === level 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300'
+                    speedLevel === level
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 hover:bg-gray-300"
                   }`}
                 >
                   {level}
@@ -360,8 +416,8 @@ function SnakeGame() {
             </div>
           </div>
         )}
-        
-        <div 
+
+        <div
           ref={boardRef}
           className={`relative mx-auto mb-4 overflow-hidden rounded-lg shadow-inner bg-green-50 border-2 ${
             showHighlight ? "border-yellow-400" : "border-green-200"
@@ -383,7 +439,7 @@ function SnakeGame() {
               transition: "all 0.1s ease",
             }}
           />
-          
+
           {/* Super food */}
           {superFood && (
             <div
@@ -397,7 +453,7 @@ function SnakeGame() {
               }}
             />
           )}
-          
+
           {/* Snake segments */}
           {snake.map((segment, index) => (
             <div
@@ -412,35 +468,41 @@ function SnakeGame() {
                 top: segment.y * CELL_SIZE + BOARD_PADDING + 1,
                 transition: "all 0.1s ease",
                 zIndex: snake.length - index,
-                transform: index === 0 ? 'scale(1.1)' : 'scale(1)',
-                boxShadow: index === 0 ? '0 0 8px rgba(0,0,0,0.3)' : 'none',
+                transform: index === 0 ? "scale(1.1)" : "scale(1)",
+                boxShadow: index === 0 ? "0 0 8px rgba(0,0,0,0.3)" : "none",
               }}
             />
           ))}
         </div>
-        
+
         {/* Food counter */}
         {gameStarted && !gameOver && (
           <div className="text-center mb-4">
             <div className="inline-flex items-center bg-blue-50 px-3 py-1 rounded-full">
-              <span className="text-blue-700 font-medium mr-2">Next Super Food:</span>
+              <span className="text-blue-700 font-medium mr-2">
+                Next Super Food:
+              </span>
               <div className="flex">
                 {[...Array(5)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-2 h-2 mx-1 rounded-full ${i < foodCount % 5 ? 'bg-blue-500' : 'bg-blue-200'}`}
+                  <div
+                    key={i}
+                    className={`w-2 h-2 mx-1 rounded-full ${
+                      i < foodCount % 5 ? "bg-blue-500" : "bg-blue-200"
+                    }`}
                   />
                 ))}
               </div>
             </div>
           </div>
         )}
-        
+
         {!gameStarted && !gameOver && (
           <div className="text-center mb-4">
-            <p className="text-gray-600 mb-2">Press SPACE or tap the board to start</p>
+            <p className="text-gray-600 mb-2">
+              Press SPACE or tap the board to start
+            </p>
             <div className="flex justify-center gap-4">
-              <button 
+              <button
                 onClick={() => setGameStarted(true)}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition"
               >
@@ -449,12 +511,12 @@ function SnakeGame() {
             </div>
           </div>
         )}
-        
+
         {gameOver && (
           <div className="text-center mb-4">
             <p className="text-red-600 font-bold text-xl mb-2">Game Over!</p>
             <p className="text-gray-700 mb-4">Final Score: {score}</p>
-            
+
             <div className="flex justify-center gap-4 mb-4">
               <button
                 onClick={resetGame}
@@ -462,7 +524,7 @@ function SnakeGame() {
               >
                 Play Again
               </button>
-              
+
               {highlightReplay.length > 0 && (
                 <button
                   onClick={playHighlight}
@@ -472,7 +534,7 @@ function SnakeGame() {
                 </button>
               )}
             </div>
-            
+
             {highlightReplay.length > 0 && showHighlight && (
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-sm text-yellow-800 mb-2">
                 Playing your last game highlight...
@@ -480,14 +542,14 @@ function SnakeGame() {
             )}
           </div>
         )}
-        
+
         {gameStarted && !gameOver && (
           <div className="flex justify-center gap-4">
             <button
-              onClick={() => setIsPaused(prev => !prev)}
+              onClick={() => setIsPaused((prev) => !prev)}
               className="px-4 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition"
             >
-              {isPaused ? 'Resume' : 'Pause'}
+              {isPaused ? "Resume" : "Pause"}
             </button>
             <button
               onClick={resetGame}
@@ -497,7 +559,7 @@ function SnakeGame() {
             </button>
           </div>
         )}
-        
+
         <div className="mt-6 text-sm text-gray-500">
           <p className="text-center">Controls: Arrow Keys or Swipe</p>
           <p className="text-center">Space to pause/resume</p>
